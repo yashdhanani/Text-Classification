@@ -26,16 +26,49 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("NeuralText API starting", version=settings.APP_VERSION, env=settings.ENVIRONMENT)
 
-    # Ensure DB tables exist in development
-    if settings.ENVIRONMENT == "development":
-        from app.core.database import create_all_tables
-        try:
-            await create_all_tables()
-            logger.info("Database tables ensured")
-        except Exception as e:
-            logger.warning("Could not create tables", error=str(e))
+    # 1. Ensure all models are imported so Base.metadata contains all tables
+    import app.models.user
+    import app.models.project
+    import app.models.dataset
+    import app.models.ml_model
+    import app.models.prediction
+    import app.models.api_key
+    import app.models.training_job
 
-    # Warm up model manager
+    # 2. Ensure DB tables exist
+    from app.core.database import create_all_tables, AsyncSessionLocal
+    try:
+        await create_all_tables()
+        logger.info("Database tables ensured")
+    except Exception as e:
+        logger.warning("Could not create tables", error=str(e))
+
+    # 3. Ensure default admin user exists
+    try:
+        from sqlalchemy import select
+        from app.models.user import User
+        from app.core.security import hash_password
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(select(User).where(User.email == "admin@neuraltext.ai"))
+            admin = res.scalar_one_or_none()
+            if not admin:
+                logger.info("Seeding default admin user...")
+                admin = User(
+                    email="admin@neuraltext.ai",
+                    username="admin",
+                    full_name="System Administrator",
+                    hashed_password=hash_password("admin123456"),
+                    role="admin",
+                    is_active=True,
+                    is_verified=True,
+                )
+                db.add(admin)
+                await db.commit()
+                logger.info("Default admin user created: admin@neuraltext.ai")
+    except Exception as e:
+        logger.warning("Could not ensure default admin user", error=str(e))
+
+    # 4. Warm up model manager
     from app.ml.inference.model_manager import get_model_manager
     _ = get_model_manager()
 
@@ -63,7 +96,8 @@ async def api_v1_docs():
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"] if settings.CORS_ORIGINS == ["*"] else settings.CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.onrender\.com|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
