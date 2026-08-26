@@ -1,0 +1,185 @@
+"""
+NeuralText — FastAPI Application Entry Point
+Production-ready with middleware, exception handlers, CORS, and OpenAPI docs.
+"""
+from __future__ import annotations
+
+import time
+import uuid
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.core.config import settings
+from app.core.exceptions import NeuralTextError
+from app.core.logging import configure_logging, get_logger, request_id_var
+
+configure_logging()
+logger = get_logger(__name__)
+
+
+# ── Lifespan ──────────────────────────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("NeuralText API starting", version=settings.APP_VERSION, env=settings.ENVIRONMENT)
+
+    # Ensure DB tables exist in development
+    if settings.ENVIRONMENT == "development":
+        from app.core.database import create_all_tables
+        try:
+            await create_all_tables()
+            logger.info("Database tables ensured")
+        except Exception as e:
+            logger.warning("Could not create tables", error=str(e))
+
+    # Warm up model manager
+    from app.ml.inference.model_manager import get_model_manager
+    _ = get_model_manager()
+
+    yield
+
+    logger.info("NeuralText API shutting down")
+
+
+# ── App Instance ──────────────────────────────────────────────────────────────
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="World-class AI/NLP Text Classification Platform",
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+@app.get("/api/v1/docs", include_in_schema=False)
+async def api_v1_docs():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/docs")
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── Request ID & Timing Middleware ────────────────────────────────────────────
+@app.middleware("http")
+async def request_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request_id_var.set(request_id)
+    start = time.perf_counter()
+
+    response = await call_next(request)
+
+    duration_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
+
+    logger.info(
+        "Request",
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        duration_ms=round(duration_ms, 2),
+    )
+    return response
+
+
+# ── Exception Handlers ────────────────────────────────────────────────────────
+@app.exception_handler(NeuralTextError)
+async def neuraltext_error_handler(request: Request, exc: NeuralTextError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": {
+                "code": exc.error_code,
+                "message": exc.message,
+                "request_id": request_id_var.get(""),
+            },
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Request validation failed.",
+                "details": exc.errors(),
+                "request_id": request_id_var.get(""),
+            },
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_error_handler(request: Request, exc: Exception):
+    logger.error("Unhandled exception", error=str(exc), exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred.",
+                "request_id": request_id_var.get(""),
+            },
+        },
+    )
+
+
+# ── Routers ───────────────────────────────────────────────────────────────────
+from app.api.v1.auth import router as auth_router
+from app.api.v1.projects import router as projects_router
+from app.api.v1.datasets import router as datasets_router
+from app.api.v1.training import router as training_router
+from app.api.v1.models import router as models_router
+from app.api.v1.predict import predict_router, api_keys_router, dashboard_router
+from app.api.v1.batch import batch_router
+from app.api.v1.admin import admin_router
+
+prefix = settings.API_V1_PREFIX
+
+app.include_router(auth_router, prefix=prefix)
+app.include_router(projects_router, prefix=prefix)
+app.include_router(datasets_router, prefix=prefix)
+app.include_router(training_router, prefix=prefix)
+app.include_router(models_router, prefix=prefix)
+app.include_router(predict_router, prefix=prefix)
+app.include_router(api_keys_router, prefix=prefix)
+app.include_router(dashboard_router, prefix=prefix)
+app.include_router(batch_router, prefix=prefix)
+app.include_router(admin_router, prefix=prefix)
+
+
+# ── Health Check ──────────────────────────────────────────────────────────────
+@app.get("/health", tags=["Health"])
+async def health():
+    return {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "environment": settings.ENVIRONMENT,
+    }
+
+
+@app.get("/", tags=["Root"])
+async def root():
+    return {
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "docs": f"{settings.API_V1_PREFIX}/docs",
+    }

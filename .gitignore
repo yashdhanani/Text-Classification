@@ -1,0 +1,89 @@
+# ── Python / Backend ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyc
+.Python
+pip-wheel-metadata/
+
+# Virtual environments
+backend/venv/
+backend/.venv/
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+.env.local
+.env.production
+backend/.env
+backend/.env.local
+
+# ── Node.js / Frontend ───────────────────────────────────────────────────────
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env.production
+node_modules/
+.next/
+
+# ── ML Artifacts & Data ──────────────────────────────────────────────────────
+# Model weights (too large for git)
+backend/storage/models/*.pt
+backend/storage/models/*.pth
+backend/storage/models/*.pkl
+*.pt
+*.pth
+*.pkl
+*.h5
+*.onnx
+
+# Datasets & uploads
+backend/storage/uploads/
+/tmp/neuraltext/
+
+# HuggingFace cache
+backend/storage/hf_cache/
+~/.cache/huggingface/
+
+# ── Database & Logs ──────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+
+# ── Testing artifacts ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+deep_test.py
+
+# ── OS / Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+# Keep docker-compose.yml — exclude override files
+docker-compose.override.yml
+
+# ── Alembic ──────────────────────────────────────────────────────────────────
+# Keep migrations, exclude DB backups
+*.sql.bak
+
+# ── TypeScript build ─────────────────────────────────────────────────────────
+frontend/tsconfig.tsbuildinfo
