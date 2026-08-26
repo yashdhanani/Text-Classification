@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
 
+    @field_validator("REDIS_URL", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND", mode="before")
+    @classmethod
+    def validate_redis_urls(cls, v: Any) -> str:
+        val = str(v or "").strip()
+        if not (val.startswith("redis://") or val.startswith("rediss://") or val.startswith("unix://")):
+            return "redis://localhost:6379/0"
+        return val
+
     # ── Object Storage (MinIO / S3) ───────────────────────────────────────────
     S3_ENDPOINT: str = "http://localhost:9000"
     S3_ACCESS_KEY: str = "neuraltext"

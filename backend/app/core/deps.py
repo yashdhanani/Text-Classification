@@ -32,9 +32,12 @@ _redis_pool: Optional[aioredis.Redis] = None
 async def get_redis() -> Optional[aioredis.Redis]:
     global _redis_pool
     if _redis_pool is None:
+        url = str(settings.REDIS_URL or "").strip()
+        if not (url.startswith("redis://") or url.startswith("rediss://") or url.startswith("unix://")):
+            return None
         try:
             _redis_pool = aioredis.from_url(
-                settings.REDIS_URL,
+                url,
                 encoding="utf-8",
                 decode_responses=True,
                 socket_connect_timeout=2.0,
