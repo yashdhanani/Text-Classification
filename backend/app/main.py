@@ -43,30 +43,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Could not create tables", error=str(e))
 
-    # 3. Ensure default admin user exists
+    # 3. Ensure default admin user and seed initial database content
     try:
-        from sqlalchemy import select
-        from app.models.user import User
-        from app.core.security import hash_password
-        async with AsyncSessionLocal() as db:
-            res = await db.execute(select(User).where(User.email == "admin@neuraltext.ai"))
-            admin = res.scalar_one_or_none()
-            if not admin:
-                logger.info("Seeding default admin user...")
-                admin = User(
-                    email="admin@neuraltext.ai",
-                    username="admin",
-                    full_name="System Administrator",
-                    hashed_password=hash_password("admin123456"),
-                    role="admin",
-                    is_active=True,
-                    is_verified=True,
-                )
-                db.add(admin)
-                await db.commit()
-                logger.info("Default admin user created: admin@neuraltext.ai")
+        from scripts.seed_data import seed
+        await seed()
+        logger.info("Database initialized and seeded successfully")
     except Exception as e:
-        logger.warning("Could not ensure default admin user", error=str(e))
+        logger.warning("Could not auto-seed database", error=str(e))
 
     # 4. Warm up model manager
     from app.ml.inference.model_manager import get_model_manager
