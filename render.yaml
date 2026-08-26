@@ -1,0 +1,46 @@
+services:
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  - type: web
+    name: neuraltext-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: neuraltext-db
+          property: connectionString
+      - key: REDIS_URL
+        sync: false   # Set manually from Upstash
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://neuraltext-frontend.onrender.com
+    healthCheckPath: /health
+
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  - type: web
+    name: neuraltext-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://neuraltext-api.onrender.com
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://neuraltext-api.onrender.com
+
+databases:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  - name: neuraltext-db
+    databaseName: neuraltext_db
+    user: neuraltext
+    plan: free
