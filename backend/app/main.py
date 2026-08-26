@@ -93,6 +93,34 @@ async def api_v1_docs():
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/docs")
 
+
+@app.get("/api/v1/debug/db", tags=["System"])
+async def debug_db(db: AsyncSession = Depends(get_db)):
+    """Diagnostic endpoint to verify database connectivity on live deployments."""
+    try:
+        from sqlalchemy import text, select
+        from app.models.user import User
+        res = await db.execute(text("SELECT 1"))
+        users = (await db.execute(select(User))).scalars().all()
+        
+        # Mask credentials in URL for safety
+        db_str = str(settings.DATABASE_URL or "")
+        masked = db_str.split("@")[-1] if "@" in db_str else "local/sqlite"
+        return {
+            "status": "connected",
+            "host": masked,
+            "test_query": res.scalar(),
+            "user_count": len(users),
+            "users": [u.email for u in users],
+        }
+    except Exception as e:
+        logger.error("DB diagnostic failed", error=str(e))
+        return {
+            "status": "error",
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+        }
+
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
