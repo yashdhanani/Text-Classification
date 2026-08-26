@@ -237,11 +237,11 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-50 p-1"
+                  className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-card border border-border shadow-2xl overflow-hidden z-50 p-1 backdrop-blur-xl"
                 >
                   <div className="p-3.5 border-b border-border flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-sm">Notifications</h3>
+                      <h3 className="font-semibold text-sm text-foreground">Notifications</h3>
                       <p className="text-[11px] text-muted-foreground">Platform updates and job events</p>
                     </div>
                     {unreadCount > 0 && (
@@ -316,9 +316,9 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-50 p-2 space-y-1"
+                  className="absolute right-0 mt-2 w-64 rounded-2xl bg-card border border-border shadow-2xl overflow-hidden z-50 p-2 space-y-1 backdrop-blur-xl"
                 >
-                  <div className="p-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-1">
+                  <div className="p-3 border-b border-border bg-muted/40 rounded-xl mb-1">
                     <p className="text-xs font-bold text-foreground">Admin Lead</p>
                     <p className="text-[11px] text-muted-foreground truncate">admin@neuraltext.ai</p>
                     <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-md bg-primary/15 text-primary font-semibold uppercase tracking-wider">
@@ -329,37 +329,37 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
                   <Link
                     href="/settings"
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted hover:text-primary transition-colors group"
                   >
-                    <Settings className="w-4 h-4 text-muted-foreground" />
-                    Account Settings
+                    <Settings className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span>Account Settings</span>
                   </Link>
 
                   <Link
                     href="/api"
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted hover:text-primary transition-colors group"
                   >
-                    <Key className="w-4 h-4 text-muted-foreground" />
-                    API Credentials
+                    <Key className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span>API Credentials</span>
                   </Link>
 
                   <Link
                     href="/admin"
                     onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted hover:text-primary transition-colors group"
                   >
-                    <Shield className="w-4 h-4 text-muted-foreground" />
-                    Governance & Audit
+                    <Shield className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span>Governance & Audit</span>
                   </Link>
 
-                  <div className="pt-1 border-t border-slate-100 dark:border-slate-800 mt-1">
+                  <div className="pt-1 border-t border-border mt-1">
                     <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out
+                      <span>Sign Out</span>
                     </button>
                   </div>
                 </motion.div>
@@ -377,7 +377,7 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
               initial={{ scale: 0.95, opacity: 0, y: -10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: -10 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col"
+              className="bg-card border border-border rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col text-foreground backdrop-blur-xl"
             >
               {/* Search input header */}
               <div className="p-4 border-b border-border flex items-center gap-3">
