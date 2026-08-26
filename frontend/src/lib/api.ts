@@ -94,6 +94,8 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     api.post("/auth/login", data).then((r) => r.data),
   me: () => api.get("/auth/me").then((r) => r.data),
+  updateMe: (data: { full_name?: string; current_password?: string; new_password?: string }) =>
+    api.patch("/auth/me", data).then((r) => r.data),
   logout: (refresh_token: string) => api.post("/auth/logout", { refresh_token }),
   forgotPassword: (email: string) => api.post("/auth/forgot-password", { email }),
   resetPassword: (token: string, new_password: string) =>

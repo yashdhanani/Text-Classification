@@ -1,38 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { authApi } from "@/lib/api";
 import { useTheme } from "next-themes";
 import {
   User, Shield, Moon, Sun, Monitor, Bell, Key,
-  Lock, Save, CheckCircle2, AlertTriangle
+  Lock, Save, CheckCircle2, AlertTriangle, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const queryClient = useQueryClient();
   const [fullName, setFullName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [saved, setSaved] = useState(false);
 
-  const { data: user } = useQuery({
+  const { data: user, isLoading } = useQuery({
     queryKey: ["me"],
     queryFn: () => authApi.me(),
   });
 
+  useEffect(() => {
+    if (user?.full_name) {
+      setFullName(user.full_name);
+    }
+  }, [user]);
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { full_name?: string; current_password?: string; new_password?: string }) =>
+      authApi.updateMe(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      toast.success("Profile changes saved successfully.");
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.detail || err.response?.data?.error?.message || "Failed to update profile";
+      toast.error(msg);
+    },
+  });
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    toast.success("Profile changes saved successfully.");
-    setTimeout(() => setSaved(false), 2500);
+    updateProfileMutation.mutate({ full_name: fullName });
   };
 
   const handleUpdatePassword = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword) {
+      toast.error("Please enter your current password.");
+      return;
+    }
     if (!newPassword || newPassword.length < 8) {
       toast.error("New password must be at least 8 characters.");
       return;
@@ -41,10 +62,17 @@ export default function SettingsPage() {
       toast.error("Passwords do not match.");
       return;
     }
-    toast.success("Password updated successfully.");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    updateProfileMutation.mutate(
+      { current_password: currentPassword, new_password: newPassword },
+      {
+        onSuccess: () => {
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+          toast.success("Password updated successfully.");
+        },
+      }
+    );
   };
 
   return (
@@ -52,7 +80,7 @@ export default function SettingsPage() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-3xl font-bold">Platform Settings</h1>
         <p className="text-muted-foreground mt-1">
-          Manage your user account credentials, preferences, theme mode, and security configurations.
+          Manage your personal credentials, preferences, theme mode, and security configurations.
         </p>
       </motion.div>
 
@@ -63,14 +91,21 @@ export default function SettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-5"
         >
-          <div className="flex items-center gap-3 pb-4 border-b border-border">
-            <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
+          <div className="flex items-center justify-between pb-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center font-bold text-primary">
+                {(user?.full_name || user?.username || "U").charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="font-semibold text-base">Account Profile</h2>
+                <p className="text-xs text-muted-foreground">Personal details and identification</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-semibold text-base">Account Profile</h2>
-              <p className="text-xs text-muted-foreground">Personal details and identification</p>
-            </div>
+            {user?.role && (
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">
+                {user.role.replace("_", " ")}
+              </span>
+            )}
           </div>
 
           <form onSubmit={handleSaveProfile} className="space-y-4 max-w-xl">
@@ -78,16 +113,18 @@ export default function SettingsPage() {
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Full Name</label>
                 <input
-                  defaultValue={user?.full_name || "Admin User"}
+                  value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-muted rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  placeholder="Your Name"
+                  className="w-full px-3.5 py-2.5 bg-muted rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                 />
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Username</label>
                 <input
-                  defaultValue={user?.username || "admin"}
+                  value={user?.username || ""}
                   disabled
+                  placeholder="username"
                   className="w-full px-3.5 py-2.5 bg-muted/50 rounded-lg border border-border text-sm text-muted-foreground cursor-not-allowed"
                 />
               </div>
@@ -96,17 +133,20 @@ export default function SettingsPage() {
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Email Address</label>
               <input
-                defaultValue={user?.email || "admin@neuraltext.ai"}
+                value={user?.email || ""}
                 disabled
+                placeholder="user@example.com"
                 className="w-full px-3.5 py-2.5 bg-muted/50 rounded-lg border border-border text-sm text-muted-foreground cursor-not-allowed"
               />
             </div>
 
             <button
               type="submit"
-              className="px-5 py-2.5 bg-primary text-primary-foreground font-semibold rounded-xl text-sm hover:opacity-90 transition-all flex items-center gap-2"
+              disabled={updateProfileMutation.isPending}
+              className="px-5 py-2.5 bg-primary text-primary-foreground font-semibold rounded-xl text-sm hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
             >
-              <Save className="w-4 h-4" /> Save Profile
+              {updateProfileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Profile
             </button>
           </form>
         </motion.div>

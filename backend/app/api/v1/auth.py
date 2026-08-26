@@ -160,8 +160,31 @@ async def logout(
     return Response(status_code=204)
 
 
+class UserUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    body: UserUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if body.full_name is not None:
+        current_user.full_name = body.full_name
+    if body.new_password:
+        if not body.current_password or not verify_password(body.current_password, current_user.hashed_password):
+            raise HTTPException(status_code=400, detail="Current password is incorrect.")
+        current_user.hashed_password = hash_password(body.new_password)
+    await db.commit()
+    await db.refresh(current_user)
     return current_user
 
 

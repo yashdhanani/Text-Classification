@@ -11,8 +11,9 @@ import {
   Command, Layers, HelpCircle
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { tokenStorage } from "@/lib/api";
+import { tokenStorage, authApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // Route metadata for breadcrumbs
@@ -81,6 +82,18 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
   const [notifOpen, setNotifOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(2);
+
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => authApi.me(),
+    retry: 1,
+  });
+
+  const displayName = user?.full_name || user?.username || "Account User";
+  const displayEmail = user?.email || "user@neuraltext.ai";
+  const roleStr = user?.role ? user.role.replace("_", " ").toUpperCase() : "MEMBER";
+  const avatarLetter = (displayName || "U").charAt(0).toUpperCase();
+  const isAdmin = user?.role === "admin";
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -301,11 +314,11 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
               className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-muted/60 border border-transparent hover:border-border transition-all"
             >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-md shadow-primary/20">
-                A
+                {avatarLetter}
               </div>
               <div className="hidden xl:block text-left">
-                <p className="text-xs font-semibold text-foreground leading-none">Admin Lead</p>
-                <span className="text-[10px] text-primary font-semibold uppercase tracking-wider">Enterprise Admin</span>
+                <p className="text-xs font-semibold text-foreground leading-none">{displayName}</p>
+                <span className="text-[10px] text-primary font-semibold uppercase tracking-wider">{roleStr}</span>
               </div>
             </button>
 
@@ -319,10 +332,10 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
                   className="absolute right-0 mt-2 w-64 rounded-2xl bg-card border border-border shadow-2xl overflow-hidden z-50 p-2 space-y-1 backdrop-blur-xl"
                 >
                   <div className="p-3 border-b border-border bg-muted/40 rounded-xl mb-1">
-                    <p className="text-xs font-bold text-foreground">Admin Lead</p>
-                    <p className="text-[11px] text-muted-foreground truncate">admin@neuraltext.ai</p>
+                    <p className="text-xs font-bold text-foreground">{displayName}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{displayEmail}</p>
                     <span className="inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-md bg-primary/15 text-primary font-semibold uppercase tracking-wider">
-                      Role: System Admin
+                      Role: {roleStr}
                     </span>
                   </div>
 
@@ -344,14 +357,16 @@ export function DashboardHeader({ onToggleMobileMenu }: { onToggleMobileMenu?: (
                     <span>API Credentials</span>
                   </Link>
 
-                  <Link
-                    href="/admin"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted hover:text-primary transition-colors group"
-                  >
-                    <Shield className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <span>Governance & Audit</span>
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted hover:text-primary transition-colors group"
+                    >
+                      <Shield className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <span>Governance & Audit</span>
+                    </Link>
+                  )}
 
                   <div className="pt-1 border-t border-border mt-1">
                     <button
