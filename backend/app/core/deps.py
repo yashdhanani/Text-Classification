@@ -29,14 +29,18 @@ bearer_scheme = HTTPBearer(auto_error=False)
 _redis_pool: Optional[aioredis.Redis] = None
 
 
-async def get_redis() -> aioredis.Redis:
+async def get_redis() -> Optional[aioredis.Redis]:
     global _redis_pool
     if _redis_pool is None:
-        _redis_pool = aioredis.from_url(
-            settings.REDIS_URL,
-            encoding="utf-8",
-            decode_responses=True,
-        )
+        try:
+            _redis_pool = aioredis.from_url(
+                settings.REDIS_URL,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=2.0,
+            )
+        except Exception:
+            return None
     return _redis_pool
 
 
@@ -47,7 +51,7 @@ async def get_current_user_id(
     ] = None,
     x_api_key: Annotated[Optional[str], Header()] = None,
     db: AsyncSession = Depends(get_db),
-    redis: aioredis.Redis = Depends(get_redis),
+    redis: Optional[aioredis.Redis] = Depends(get_redis),
 ) -> str:
     """
     Extract and validate the current user from JWT bearer token OR API key.
@@ -65,14 +69,19 @@ async def get_current_user_id(
                 if payload.get("type") == "access":
                     user_id = payload.get("sub")
                     if user_id:
-                        try:
-                            jti = payload.get("jti", "")
-                            if jti and await redis.exists(f"blocklist:{jti}"):
-                                raise InvalidTokenError("Token has been revoked.")
-                        except Exception:
-                            pass
+                        if redis:
+                            try:
+                                jti = payload.get("jti", "")
+                                if jti and await redis.exists(f"blocklist:{jti}"):
+                                    raise InvalidTokenError("Token has been revoked.")
+                            except InvalidTokenError:
+                                raise
+                            except Exception:
+                                pass
                         return user_id
-            except Exception as e:
+            except (InvalidTokenError, AuthenticationError):
+                raise
+            except Exception:
                 pass
         else:
             x_api_key = token_str
@@ -85,16 +94,25 @@ async def get_current_user_id(
         if not api_key or not api_key.is_active:
             raise InvalidTokenError("Invalid or revoked API key.")
 
-        # Rate limiting per API key
-        rate_key = f"rate:{api_key.id}"
-        current = await redis.incr(rate_key)
-        if current == 1:
-            await redis.expire(rate_key, 60)
-        if current > api_key.rate_limit_per_minute:
-            raise RateLimitError("API key rate limit exceeded.")
+        # Rate limiting per API key if redis is available
+        if redis:
+            try:
+                rate_key = f"rate:{api_key.id}"
+                current = await redis.incr(rate_key)
+                if current == 1:
+                    await redis.expire(rate_key, 60)
+                if current > api_key.rate_limit_per_minute:
+                    raise RateLimitError("API key rate limit exceeded.")
+            except RateLimitError:
+                raise
+            except Exception:
+                pass
 
         # Update last_used
-        await key_repo.update_last_used(api_key.id)
+        try:
+            await key_repo.update_last_used(api_key.id)
+        except Exception:
+            pass
         return str(api_key.user_id)
 
     raise AuthenticationError("No valid authentication credentials provided.")
