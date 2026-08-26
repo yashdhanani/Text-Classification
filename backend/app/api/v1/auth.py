@@ -100,21 +100,30 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
-    repo = UserRepository(db)
-    user = await repo.get_by_email(body.email)
+    try:
+        repo = UserRepository(db)
+        user = await repo.get_by_email(body.email)
 
-    if not user or not verify_password(body.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account deactivated.")
+        if not user or not verify_password(body.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Account deactivated.")
 
-    await repo.update(user, last_login_at=datetime.now(timezone.utc))
+        try:
+            await repo.update(user, last_login_at=datetime.now(timezone.utc))
+        except Exception as e:
+            logger.warning("Could not update last_login_at", error=str(e))
 
-    extra = {"role": user.role, "email": user.email}
-    return TokenResponse(
-        access_token=create_access_token(str(user.id), extra_claims=extra),
-        refresh_token=create_refresh_token(str(user.id)),
-    )
+        extra = {"role": user.role, "email": user.email}
+        return TokenResponse(
+            access_token=create_access_token(str(user.id), extra_claims=extra),
+            refresh_token=create_refresh_token(str(user.id)),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Login encountered an unhandled error", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Authentication server error: {str(e)}")
 
 
 @router.post("/refresh", response_model=TokenResponse)

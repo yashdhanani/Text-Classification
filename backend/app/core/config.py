@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     PASSWORD_RESET_EXPIRE_MINUTES: int = 30
 
+    @model_validator(mode="after")
+    def sync_secret_keys(self) -> "Settings":
+        if self.JWT_SECRET_KEY and self.JWT_SECRET_KEY != "neuraltext_dev_super_secret_jwt_key_987654321":
+            self.SECRET_KEY = self.JWT_SECRET_KEY
+        elif self.SECRET_KEY:
+            self.JWT_SECRET_KEY = self.SECRET_KEY
+        return self
+
     # ── Database ─────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://neuraltext:neuraltext@localhost:5432/neuraltext"
     DATABASE_POOL_SIZE: int = 20
