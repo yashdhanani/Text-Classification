@@ -208,7 +208,8 @@ async def generic_error_handler(request: Request, exc: Exception):
             "success": False,
             "error": {
                 "code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred.",
+                "message": str(exc),
+                "type": type(exc).__name__,
                 "request_id": request_id_var.get(""),
             },
         },
