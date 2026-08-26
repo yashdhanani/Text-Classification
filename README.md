@@ -42,7 +42,7 @@
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/neuraltext.git
+git clone https://github.com/yashdhanani/neuraltext.git
 cd neuraltext
 
 # Start everything (PostgreSQL + Redis + Backend + Frontend)
@@ -253,7 +253,7 @@ railway up
 ### VPS (DigitalOcean / AWS / GCP)
 ```bash
 # On your server
-git clone https://github.com/YOUR_USERNAME/neuraltext.git
+git clone https://github.com/yashdhanani/neuraltext.git
 cd neuraltext
 
 # Set production env vars
